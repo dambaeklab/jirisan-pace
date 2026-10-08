@@ -234,6 +234,7 @@ function plannedAt(D, km) {
   return c[c.length - 1].A;
 }
 
+function rawFix() { return gps.fix && gps.fix.day === day && (Date.now() - gps.fix.t) < 180000 ? gps.fix : null; }
 function status() {
   const D = DAYS[day], n = now(), c = D.cps;
   const li = lastRecIdx(D);
@@ -321,7 +322,8 @@ function render() {
   }
   if (day === "d2" && s.nextIdx <= 2 && st.key !== "pre" && st.key !== "good" && st.key !== "ok")
     adv.push(["warn", "날씨나 컨디션이 나쁘면 천왕봉을 포기하고 세석 → 한신계곡 → 백무동 (약 3시간 30분)."]);
-  if (s.fix && s.fix.off > 80) adv.push(["bad", `등산로에서 ${Math.round(s.fix.off)}m 떨어져 있습니다. 길을 확인하세요.`]);
+  const rf = rawFix();
+  if (rf && rf.off > 80) adv.push(["bad", rf.off > 3000 ? `등산로에서 ${(rf.off / 1000).toFixed(1)}km 떨어져 있습니다 (아직 산에 들어가기 전이면 정상).` : `등산로에서 ${Math.round(rf.off)}m 떨어져 있습니다. 길을 확인하세요.`]);
   $("advice").innerHTML = adv.map(([k, t]) => `<div style="--state-a:var(--${k})">${esc(t)}</div>`).join("");
 
   // checkpoints
@@ -375,8 +377,9 @@ function drawMap(s) {
       svg += `<text x="${tx}" y="${ty}" text-anchor="${anchor}">${esc(x.name.split(" ")[0])}${x.meal && x.meal !== "간식" ? " · " + x.meal : ""}</text>`;
     }
   });
-  if (s.fix) {
-    const cx = X(gps.fix.lon), cy = Y(gps.fix.lat);
+  const rf = rawFix();
+  if (rf && rf.off < 3000) {
+    const cx = Math.min(W - 16, Math.max(16, X(rf.lon))), cy = Math.min(H - 16, Math.max(16, Y(rf.lat)));
     svg += `<circle class="pulse" cx="${cx}" cy="${cy}" r="14" fill="var(--accent)"/><circle cx="${cx}" cy="${cy}" r="13" fill="var(--accent)" stroke="var(--bg)" stroke-width="5"/>`;
   }
   $("map").innerHTML = svg + `</svg><div class="legend"><span><i style="border:2px solid var(--water)"></i>물 보충</span><span><i style="border:2px dashed var(--water)"></i>물 불확실</span><span><i style="background:var(--accent)"></i>지나온 길·기록한 지점</span><span>· 식사 지점은 이름 옆에 표시</span></div>`;
